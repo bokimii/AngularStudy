@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { AngularFirestore, AngularFirestoreCollection, CollectionReference } from '@angular/fire/compat/firestore';
 
+import { take, map } from 'rxjs/operators';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -22,7 +24,20 @@ export class AskService {
     //  console.log(res);
     //});
   }  
+  /*//파이프, 테이크 예제
+  testPipeTake(){
+    this.DataBase.collection<any>("test").stateChanges().pipe(
+      take(1), //1번만 구독, 구독하는 대상의 행위를 종료
+      map(actions => { //map은 가공의 의미
+        return actions.map(a=>a.payload.doc.data());
+      })).subscribe( 
+      arg=>{
+        console.log(arg);
+      }
+    )
+  }*/
 
+  
   //"select * from board"
   //getItem함수에서 맨 처음 호출하는 것은 DataBase 객체(AngularFirestore로 구성된) 
   //해당 객체에서 collection이라는 함수를 실행하는데 2개의 파라미터가 필요
@@ -49,6 +64,34 @@ export class AskService {
       this.collectionArray[db_name] = this.DataBase.collection<any>(db_name);
     }
     this.collectionArray[db_name] .add(data);
+  }
+
+  updateData(db_name: string, parameter : any, target_id : any){
+    this.collectionArray[db_name].stateChanges().pipe( //데이터를 단순하게 보는 것에는 valueChanges 함수가 좀 더 최적화 되어 있으며, 다양한 행동에 대해서 기능을 완성하려면 stateChanges함수를 사용
+      take(1), //구독은 한번만!, 상태 변화 시 호출인데 무한 루프 돌아감
+      map((actions : any)=>{ //첫번째 map은 stateChanges를 통해서 생성된 객체를 가공한다는 의미
+        return actions.map((a : any)=>{ //두번째 map은 첫번째 map을 통해 생성된 객체에서 다양한 정보를 가져오는 의미
+          const data = a.payload.doc.data();  //데이터  
+          const ID = a.payload.doc.id;  //고유 키 값
+          if(target_id == ID){ //들어온 ID 값이 같다면
+            this.collectionArray[db_name].doc(ID).update(parameter); //교체할 내용을 수정
+          }
+          return data;
+        });
+      })
+    ).subscribe(); //stateChanges를 통해서 생성된 기능은 구독(subscribe)을 하지 않으면 아무런 행동을 하지 않습니다.
+  }
+
+  updateData2(db_name: string, parameter : any, target_id : any){
+    this.collectionArray[db_name].doc(target_id).update(parameter); 
+  }
+
+  updateData3(db_name: string, parameter : any, target_id : any){
+    this.collectionArray[db_name].doc(target_id).set(parameter); //set 데이터를 전부 바꾸어버리는 기능, param으로 덮어 쓰기
+  }
+
+  deleteData(db_name: string, target_id : any){
+    this.collectionArray[db_name].doc(target_id).delete(); 
   }
 
   /*
